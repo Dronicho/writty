@@ -1,0 +1,29 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:.//dev.db"
+}
+
+model User {
+  address  String  @unique
+  name     String
+  token    String?
+  bio      String?
+  imageUrl String?
+  posts    Post[]
+}
+
+model Post {
+  author        User    @relation(fields: [userAddress], references: [address])
+  // url to content of the post on ipfs
+  url           String  @unique
+  // url to identify post in our system, computed as snake-cased [title] with hash
+  internalUrl   String  @unique
+  title         String
+  coverImage    String?
+  transactionId String?  @unique
+  userAddress   String
+}

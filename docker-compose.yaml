@@ -1,0 +1,98 @@
+
+version: "3.9"
+services:
+
+  cache:
+    image: redis:6.2-alpine
+    restart: always
+    ports:
+      - '6379:6379'
+    command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
+    volumes: 
+      - cache:/data
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.6.2
+    container_name: elasticsearch
+    environment:
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+      - 9300:9300
+
+  kibana:
+    container_name: kibana
+    image: docker.elastic.co/kibana/kibana:8.6.2
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - 5601:5601
+    depends_on:
+      - elasticsearch
+
+volumes:
+  elasticsearch-data:
+    driver: local
+  cache:
+    driver: local
+  # postgres:
+  #   container_name: postgres_container
+  #   image: postgres:13.3
+  #   environment:
+  #     POSTGRES_DB: "nft"
+  #     POSTGRES_USER: "admin"
+  #     POSTGRES_PASSWORD: "admin"
+  #     PGDATA: "/var/lib/postgresql/data/pgdata"
+  #   volumes:
+  #     - ../2. Init Database:/docker-entrypoint-initdb.d
+  #     - .:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U habrpguser -d habrdb"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 10s
+  #   restart: unless-stopped
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1'
+  #         memory: 4G
+  #   networks:
+  #     - postgres
+
+  # pgadmin:
+  #   container_name: pgadmin_container
+  #   image: dpage/pgadmin4:5.7
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: "habrpguser@habr.com"
+  #     PGADMIN_DEFAULT_PASSWORD: "admin"
+  #     PGADMIN_CONFIG_SERVER_MODE: "False"
+  #   volumes:
+  #     - ./pgadmin:/var/lib/pgadmin
+  #   ports:
+  #     - "5050:5050"
+  #   restart: unless-stopped
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '0.5'
+  #         memory: 1G
+  #   networks:
+  #     - postgres
+# networks:
+  # postgres:
+  #   driver: bridge

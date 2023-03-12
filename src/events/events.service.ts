@@ -11,7 +11,6 @@ import { LoginEventDto } from './dto/login-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { generateImage } from './utils/placeholder';
 import { SearchService } from 'src/common/search/search.service';
-import { nanoid } from 'nanoid';
 import { CreateArticleDto } from 'src/articles/dto/create-article.dto';
 import XRPLService from 'src/common/services/xrpl.service';
 
@@ -131,6 +130,7 @@ export class EventsService {
     // });
   }
 
+  
   computeUrl(address: string, title: string): string {
     return (
       title
@@ -138,8 +138,18 @@ export class EventsService {
         .map((e) => e.toLowerCase())
         .join('-') +
       '-' +
-      nanoid()
+      this.simpleHash(address)
     );
+  }
+
+  simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash &= hash; // Convert to 32bit integer
+    }
+    return new Uint32Array([hash])[0].toString(36);
   }
 
   update(id: number, updateEventDto: UpdateEventDto) {

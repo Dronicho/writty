@@ -1,15 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { User } from '@prisma/client';
-import { BaseApiException } from 'src/common/exceptions/base-api.exception';
 import { PrismaService } from 'src/common/services/prisma.service';
 import { XummService } from 'src/common/services/xumm.service';
 import { XummWebhookBody } from 'xumm-sdk/dist/src/types';
-import * as fetch from 'node-fetch';
 import WebSocket = require('ws');
 import { Server } from 'ws';
 import { WebSocketServer } from '@nestjs/websockets';
 import { ChannelService } from 'src/events/channel.service';
 import { convertHexToString } from 'xrpl';
+import axios from 'axios';
 
 @Injectable()
 export class AuthService {
@@ -33,9 +31,9 @@ export class AuthService {
         'X-API-Secret': process.env.XUMM_API_SECRET,
       },
     };
-    const response = await (await fetch(url, options)).json();
+    const response = await (await axios(url, options)).data;
     const address = response.response.account;
-    this.logger.debug(response)
+    this.logger.debug(response);
     if (response.payload.tx_type == 'NFTokenMint') {
       const url = convertHexToString(response.payload.request_json['URI']);
       const cid = url.split('://')[1].split('.')[0];

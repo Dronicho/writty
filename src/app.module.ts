@@ -7,9 +7,10 @@ import { CommonModule } from './common/common.module';
 import { AuthModule } from './auth/auth.module';
 import { ArticlesModule } from './articles/articles.module';
 import { UsersModule } from './users/users.module';
+import { EventsModule } from './events/events.module';
 
 @Module({
-  imports: [CommonModule, AuthModule, ArticlesModule, UsersModule],
+  imports: [CommonModule, AuthModule, ArticlesModule, UsersModule, EventsModule],
   providers: [
     XummService,
 

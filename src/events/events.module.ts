@@ -23,7 +23,6 @@ const redisProvider = (
 });
 
 @Module({
-  imports: [],
   providers: [
     redisProvider({}),
     redisProvider({}, { publisher: true }),

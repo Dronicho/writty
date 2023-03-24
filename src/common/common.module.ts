@@ -29,14 +29,12 @@ import { XummService } from './services/xumm.service';
       ttl: 60,
       limit: 50,
     }),
-    EventsModule,
   ],
   exports: [
     AppLoggerModule,
     ConfigModule,
     PrismaService,
     XummService,
-
     IpfsStorage,
     SearchModule,
     XRPLService,

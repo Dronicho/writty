@@ -1,29 +1,38 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:.//dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  address  String  @unique
-  name     String
-  token    String?
-  bio      String?
-  imageUrl String?
-  posts    Post[]
+  address    String  @id @unique
+  name       String
+  token      String?
+  bio        String?
+  imageUrl   String?
+  posts      Post[]  @relation(name: "created")
+  collectors Post[]  @relation(name: "collectors")
 }
 
 model Post {
-  author        User    @relation(fields: [userAddress], references: [address])
+  author        User     @relation(fields: [userAddress], references: [address], name: "created")
   // url to content of the post on ipfs
-  url           String  @unique
+  url           String   @id @unique
   // url to identify post in our system, computed as snake-cased [title] with hash
-  internalUrl   String  @unique
+  internalUrl   String   @unique
   title         String
+  description   String   @default("")
   coverImage    String?
   transactionId String?  @unique
+  tokenId       String   @default("")
   userAddress   String
+  maxAmount     Int      @default(0)
+  currency      String   @default("FOO")
+  createdAt     DateTime @default(now())
+  collectors    User[]   @relation(name: "collectors")
+  signingKey    Bytes?
 }

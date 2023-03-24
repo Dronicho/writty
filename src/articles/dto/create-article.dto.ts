@@ -5,3 +5,8 @@ export class CreateArticleDto {
   price: number;
   supply: number;
 }
+
+export class UpdateArticleDto {
+  internalUrl: string;
+  body: any;
+}

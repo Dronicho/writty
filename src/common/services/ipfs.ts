@@ -3,6 +3,8 @@ import * as Name from 'w3name';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { BaseApiException } from '../exceptions/base-api.exception';
+import { Post } from '@prisma/client';
+import * as fs from 'fs';
 
 type StorageResponse<T> = T | undefined;
 
@@ -12,8 +14,6 @@ export abstract class StorageService {
   abstract putSingle(data: any);
 
   abstract put(data: any[]);
-
-  abstract get(url: string);
 }
 
 @Injectable()
@@ -21,13 +21,22 @@ export class IpfsStorage implements StorageService {
   private readonly client: Web3Storage;
   private readonly logger = new Logger();
 
-  constructor(private readonly name: Name.Name) {
+  constructor(private readonly name: Name.WritableName) {
     this.client = new Web3Storage({ token: process.env.WEB3_API_TOKEN! });
   }
 
-  async get(url: string): Promise<StorageResponse<string>> {
-    this.logger.log(url);
-    const res = await this.client.get(url);
+  async get(article: Post): Promise<StorageResponse<string>> {
+    var res;
+    if (!article.signingKey) {
+      res = await this.client.get(article.url);
+    } else {
+      const buffer = await fs.promises.readFile(`${article.title}.key`);
+      const name = await Name.from(buffer);
+      const rev = await Name.resolve(name);
+      console.log(rev)
+
+      res = await this.client.get(rev.value);
+    }
 
     const files = await res?.files();
     if (!files) {
@@ -47,7 +56,9 @@ export class IpfsStorage implements StorageService {
     return a;
   }
   async putSingle(data, options?: PutOptions): Promise<CIDString> {
-    return await this.client.put([data], options);
+    const cid = await this.client.put([data], options);
+
+    return cid;
   }
   async put(data: any[]): Promise<CIDString> {
     return await this.client.put(data);

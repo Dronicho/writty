@@ -1,28 +1,41 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { IpfsStorage } from 'src/common/services/ipfs';
 import { PrismaService } from 'src/common/services/prisma.service';
 import { XummService } from 'src/common/services/xumm.service';
 import { File } from 'web3.storage';
 import { WebSocket } from 'ws';
-import { convertStringToHex } from 'xrpl';
-import { CreatePayload } from 'xumm-sdk/dist/src/types';
 import { ChannelService } from './channel.service';
 import { LoginEventDto } from './dto/login-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { generateImage } from './utils/placeholder';
 import { SearchService } from 'src/common/search/search.service';
-import { CreateArticleDto } from 'src/articles/dto/create-article.dto';
+import {
+  CreateArticleDto,
+  UpdateArticleDto,
+} from 'src/articles/dto/create-article.dto';
 import XRPLService from 'src/common/services/xrpl.service';
+import { convertStringToHex } from 'xrpl';
+import { CreatePayload } from 'xumm-sdk/dist/src/types';
+import { BaseApiException } from 'src/common/exceptions/base-api.exception';
+import { CollectArticleDto } from './dto/collect-article.dto';
+import * as Name from 'w3name';
+import {
+  computeUrl,
+  getCurrency,
+  getDescription,
+} from './utils/string.helpers';
+import * as fs from 'fs';
 
 @Injectable()
 export class EventsService {
+  private readonly logger = new Logger(EventsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly xumm: XummService,
     private readonly xrpl: XRPLService,
     private storage: IpfsStorage,
     private readonly channel: ChannelService,
-    private readonly search: SearchService,
   ) {}
 
   async login(payload: LoginEventDto | null, client: WebSocket) {
@@ -49,13 +62,12 @@ export class EventsService {
     const address = payload.address;
     delete payload.address;
     const imageUrl = generateImage(payload.name);
-    const data = await this.prisma.user.update({
+    return await this.prisma.user.update({
       where: {
         address,
       },
       data: { ...payload, imageUrl },
     });
-    // this.channel.registerClient({ socket: client, id:  })
   }
 
   async sendTransaction(
@@ -68,8 +80,9 @@ export class EventsService {
         address: data.address,
       },
     });
+    this.logger.debug(data);
     if (user) {
-      const userToken = user.token;
+      const userToken = user?.token;
 
       if (userToken) {
         const tx: CreatePayload = {
@@ -86,85 +99,107 @@ export class EventsService {
                   MemoData: convertStringToHex(data.title),
                 },
               },
+              {
+                Memo: {
+                  MemoType: convertStringToHex('Supply'),
+                  MemoData: convertStringToHex(data.supply.toString()),
+                },
+              },
             ],
           },
         };
-        // const payload = await this.xumm.createPayload(tx);
-        // if (!payload) {
-        //   throw new BaseApiException('could not create payload', 503);
-        // }
-        // this.channel.registerClient({ payloadId: payload.uuid }, client);
 
-        await this.xrpl.prepareColdWallet();
-        await this.xrpl.createTrustLine(data.address);
-        // const xumm_trust_tx: CreatePayload = {
-        //   txjson: trust_tx,
-        //   user_token: userToken,
-        // }
-        // const response = await this.xumm.createPayload();
-        await this.xrpl.sendTokens(data.address, 500);
+        const payload = await this.xumm.createPayload(tx);
+        if (!payload) {
+          throw new BaseApiException('poshel nahuy', 503);
+        }
+
+        this.channel.registerClient({ payloadId: payload.uuid }, client);
       }
     }
   }
 
+  async collect(data: CollectArticleDto, client: WebSocket) {
+    const user = await this.prisma.getUser(data.address);
+    if (!user) {
+      throw new BaseApiException('no user', 400);
+    }
+    const post = await this.prisma.post.findFirst({
+      where: {
+        internalUrl: data.url,
+      },
+    });
+    if (!post) {
+      throw new BaseApiException('no user', 400);
+    }
+    await this.xrpl.createSellOffer(post.currency);
+    const payload = await this.xrpl.createBuyOffer(
+      data.address,
+      user.token!,
+      data.url,
+      post.currency,
+    );
+    this.channel.registerClient({ payloadId: payload.uuid }, client);
+
+    // await this.xrpl.mintNft(data);
+    // const id = await this.xrpl.createSellNftOffer(data);
+    // await this.xrpl.acceptSellNftOffer(data, id.toString());
+  }
+
   async publish(data: CreateArticleDto, client: WebSocket) {
     const file = new File([JSON.stringify(data.body)], `${data.title}.json`);
-    this.sendTransaction(data, client, 'cid');
-    // await this.storage.putSingle(file, {
-    //   onRootCidReady: async (cid) => {
+    const name = await Name.create();
+    this.sendTransaction(data, client, name.toString());
+    const cid = await this.storage.putSingle(file);
+    const url = `${cid}`;
+    const revision = await Name.v0(name, url);
+    console.log(name.toString());
+    console.log(url);
 
-    //     await this.prisma.post.create({
-    //       data: {
-    //         author: {
-    //           connect: {
-    //             address: data.address,
-    //           },
-    //         },
-    //         title: data.title,
-    //         internalUrl: this.computeUrl(data.address, data.title),
-    //         url: cid,
-    //       },
-    //     });
-    //     await this.search.indexData({ ...data, body: undefined });
-    //   },
-    // });
+    await Name.publish(revision, name.key);
+    await this.prisma.post.create({
+      data: {
+        author: {
+          connect: {
+            address: data.address,
+          },
+        },
+        description: getDescription(data.body.blocks),
+        currency: getCurrency(data.title),
+        title: data.title,
+        internalUrl: computeUrl(data.address, data.title),
+        url: name.toString(),
+        maxAmount: data.supply,
+        signingKey: Buffer.from(name.bytes),
+      },
+    });
+    await fs.promises.writeFile(`${data.title}.key`, name.key.bytes);
   }
 
-  
-  computeUrl(address: string, title: string): string {
-    return (
-      title
-        .split(' ')
-        .map((e) => e.toLowerCase())
-        .join('-') +
-      '-' +
-      this.simpleHash(address)
-    );
-  }
-
-  simpleHash(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash &= hash; // Convert to 32bit integer
+  async mutate(data: UpdateArticleDto, client: WebSocket) {
+    const post = await this.prisma.post.update({
+      where: {
+        internalUrl: data.internalUrl,
+      },
+      data: {
+        description: getDescription(data.body.blocks),
+      },
+    });
+    if (!post) {
+      throw new BaseApiException('no post found', 400);
     }
-    return new Uint32Array([hash])[0].toString(36);
+    if (!post.signingKey) {
+      throw new BaseApiException('can not mutate this post', 400);
+    }
+    const key = await fs.promises.readFile(`${post.title}.key`);
+    const name = await Name.from(key);
+    this.logger.debug('got name: ' + name.toString());
+    const file = new File([JSON.stringify(data.body)], `${post.title}.json`);
+    const cid = await this.storage.putSingle(file);
+    this.logger.debug('new cid: ' + cid);
+    const previousRevision = await Name.resolve(name);
+    const revision = await Name.increment(previousRevision, cid);
+    this.logger.debug('new revision number: ' + revision.sequence);
+    await Name.publish(revision, name.key);
   }
-
-  update(id: number, updateEventDto: UpdateEventDto) {
-    return `This action updates a #${id} event`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} event`;
-  }
-}
-
-function a() {
-  return (a) => a;
-}
-
-function boot() {
-  a()('1');
 }

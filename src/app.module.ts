@@ -6,12 +6,13 @@ import { XummService } from './common/services/xumm.service';
 import { CommonModule } from './common/common.module';
 import { AuthModule } from './auth/auth.module';
 import { ArticlesModule } from './articles/articles.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
-  imports: [CommonModule, AuthModule, ArticlesModule],
+  imports: [CommonModule, AuthModule, ArticlesModule, UsersModule],
   providers: [
     XummService,
-    
+
     {
       provide: APP_GUARD,
       useClass: ThrottlerBehindProxyGuard,

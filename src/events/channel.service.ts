@@ -1,12 +1,6 @@
 import { Redis } from 'ioredis';
 import { Inject, Logger } from '@nestjs/common';
-import {
-  ClientRegister,
-  EventRecieveTypes,
-  EventSendTypes,
-  Publisher,
-  Subscriber,
-} from './event.types';
+import { ClientRegister, Publisher, Subscriber } from './event.types';
 import { WebSocket } from 'ws';
 
 class MessageContext {
@@ -51,9 +45,6 @@ export class ChannelService {
     this.subscriber.unsubscribe(`payload:${id}`);
   }
 
-  /**
-   * Handle Redis pub/sub events for the given WebSocket client.
-   */
   handleMessage =
     (context: MessageContext) =>
     async (event, data): Promise<void> => {

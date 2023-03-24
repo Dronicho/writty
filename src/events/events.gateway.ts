@@ -7,7 +7,11 @@ import {
 import { EventsService } from './events.service';
 import { WebSocket } from 'ws';
 import { LoginEventDto } from './dto/login-event.dto';
-import { CreateArticleDto } from 'src/articles/dto/create-article.dto';
+import {
+  CreateArticleDto,
+  UpdateArticleDto,
+} from 'src/articles/dto/create-article.dto';
+import { CollectArticleDto } from './dto/collect-article.dto';
 
 @WebSocketGateway({ cors: true })
 export class EventsGateway {
@@ -23,7 +27,11 @@ export class EventsGateway {
 
   @SubscribeMessage('REGISTER')
   async register(@MessageBody() payload, @ConnectedSocket() client: WebSocket) {
-    return this.eventsService.register(payload, client);
+    const data = await this.eventsService.register(payload, client);
+    return {
+      event: 'USER_INFO',
+      data,
+    };
   }
 
   @SubscribeMessage('PUBLISH')
@@ -33,6 +41,45 @@ export class EventsGateway {
   ) {
     try {
       await this.eventsService.publish(payload, client);
+    } catch (e) {
+      return {
+        event: 'PUBLISH_RESULT',
+        data: false,
+      };
+    }
+  }
+
+  @SubscribeMessage('MUTATE')
+  async mutate(
+    @MessageBody() payload: UpdateArticleDto,
+    @ConnectedSocket() client: WebSocket,
+  ) {
+    try {
+      await this.eventsService.mutate(payload, client);
+      return {
+        event: 'MUTATE',
+        data: {
+          result: true,
+          internalUrl: payload.internalUrl,
+        },
+      };
+    } catch (e) {
+      return {
+        event: 'MUTATE',
+        data: {
+          result: false,
+        },
+      };
+    }
+  }
+
+  @SubscribeMessage('COLLECT')
+  async collect(
+    @MessageBody() payload: CollectArticleDto,
+    @ConnectedSocket() client: WebSocket,
+  ) {
+    try {
+      await this.eventsService.collect(payload, client);
     } catch (e) {
       return {
         event: 'PUBLISH_RESULT',

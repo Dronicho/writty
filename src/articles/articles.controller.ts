@@ -6,7 +6,9 @@ import {
   Patch,
   Param,
   Delete,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { ArticlesService } from './articles.service';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
@@ -15,28 +17,25 @@ import { UpdateArticleDto } from './dto/update-article.dto';
 export class ArticlesController {
   constructor(private readonly articlesService: ArticlesService) {}
 
-  @Post()
-  create(@Body() createArticleDto: CreateArticleDto) {
-    return this.articlesService.create(createArticleDto);
-  }
-
-  @Get()
+  @Get('')
   findAll() {
     return this.articlesService.findAll();
   }
 
+  @Get('my')
+  findMyArticles(@Req() request: Request) {
+    return this.articlesService.findMyArticles(request.headers.authorization!);
+  }
+
+  @Get('collected')
+  findCollectedArticles(@Req() request: Request) {
+    return this.articlesService.findCollectedArticles(
+      request.headers.authorization!,
+    );
+  }
+
   @Get(':url')
-  findOne(@Param('url') url: string) {
-    return this.articlesService.findOne(url);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateArticleDto: UpdateArticleDto) {
-    return this.articlesService.update(+id, updateArticleDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.articlesService.remove(+id);
+  findOne(@Param('url') url: string, @Req() request: Request) {
+    return this.articlesService.findOne(url, request.headers.authorization);
   }
 }

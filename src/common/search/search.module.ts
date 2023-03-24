@@ -7,11 +7,11 @@ import { SearchServiceController } from './search.controller';
 import { SearchService } from './search.service';
 
 @Module({
-  imports: [
-    ElasticsearchModule.register({
-      node: 'http://localhost:9200',
-    }),
-  ],
+  // imports: [
+  //   ElasticsearchModule.register({
+  //     node: 'http://localhost:9200',
+  //   }),
+  // ],
   controllers: [SearchServiceController],
   providers: [
     SearchService,

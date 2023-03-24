@@ -6,10 +6,9 @@
     "type": "git",
     "url": "https://github.com/ahmetuysal/nest-hackathon-starter"
   },
-  "author": "Ahmet Uysal",
   "license": "MIT",
   "scripts": {
-    "build": "rimraf dist && tsc -p tsconfig.build.json",
+    "build": "rimraf dist && nest build",
     "clean": "rimraf dist",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "dotenv -e env/local.env -- nest start",

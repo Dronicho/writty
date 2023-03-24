@@ -3,5 +3,6 @@
     "altnet",
     "rippletest",
     "uuidv"
-  ]
+  ],
+  "typescript.preferences.importModuleSpecifier": "relative"
 }

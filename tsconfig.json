@@ -15,6 +15,9 @@
     "incremental": true,
     "allowJs": true,
     "moduleResolution": "node",
+    "paths": {
+      "src/*": ["./src/*"]
+    }
   },
   "exclude": ["node_modules", "dist"]
 }
